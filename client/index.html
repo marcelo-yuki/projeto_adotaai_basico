@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Adota Aí - Encontre seu novo melhor amigo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body class="bg-gray-100 flex items-center justify-center h-[100dvh] w-full fixed inset-0 font-sans">
+    <div id="view-auth" class="fixed inset-0 bg-white flex items-center justify-center z-50 px-4">
+        <div class="w-full max-w-sm p-6">
+            <h1 class="text-3xl font-bold text-center text-teal-600 mb-6 flex items-center justify-center gap-2">
+                <i class="ph-fill ph-paw-print text-3xl"></i>
+                Adota Aí
+            </h1>
+
+            <div id="form-login">
+                <input id="login-email" type="email" placeholder="Email"
+                    class="w-full mb-3 p-3 border rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-teal-600 text-sm">
+                <input id="login-password" type="password" placeholder="Senha"
+                    class="w-full mb-4 p-3 border rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-teal-600 text-sm">
+                <button onclick="login()"
+                    class="w-full bg-teal-600 text-white py-3 rounded-xl font-bold active:scale-95 transition-transform">
+                    Entrar
+                </button>
+                <p class="text-xs text-gray-500 text-center mt-3">Para testar como ONG: <strong>admin@gmail.com</strong>
+                    / <strong>1234</strong></p>
+                <p class="text-sm text-center mt-4">
+                    Não tem conta?
+                    <span onclick="toggleAuth('register')"
+                        class="text-teal-600 cursor-pointer font-bold">Cadastre-se</span>
+                </p>
+            </div>
+
+            <div id="form-register" class="hidden">
+                <input id="register-email" type="email" placeholder="Email"
+                    class="w-full mb-3 p-3 border rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-teal-600 text-sm">
+
+                <input id="register-phone" type="tel" placeholder="Telefone"
+                    class="w-full mb-3 p-3 border rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-teal-600 text-sm">
+
+                <input id="register-password" type="password" placeholder="Senha"
+                    class="w-full mb-4 p-3 border rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-teal-600 text-sm">
+
+                <button onclick="register()"
+                    class="w-full bg-green-500 text-white py-3 rounded-xl font-bold active:scale-95 transition-transform">
+                    Cadastrar
+                </button>
+
+                <p class="text-sm text-center mt-4">
+                    Já tem conta?
+                    <span onclick="toggleAuth('login')" class="text-green-500 cursor-pointer font-bold">Entrar</span>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div id="view-admin" class="hidden relative w-full md:max-w-6xl xl:max-w-[1400px]
+    h-[100dvh] md:h-[92vh]
+    md:rounded-3xl bg-white shadow-2xl
+    flex flex-col overflow-hidden
+    md:border md:border-gray-200">
+        <header
+            class="flex justify-between items-center px-5 py-4 border-b border-gray-100 bg-white z-20 flex-shrink-0">
+            <div class="flex items-center gap-2 text-teal-600 font-bold text-lg">
+                <i class="ph-fill ph-shield-check text-2xl"></i>
+                <span>Painel ONG</span>
+            </div>
+            <button onclick="logout()" class="text-xs font-bold text-red-500 bg-red-50 px-3 py-1.5 rounded-lg">
+                <i class="ph-bold ph-sign-out mr-1"></i>Sair
+            </button>
+        </header>
+
+        <div class="flex border-b border-gray-100 bg-gray-50 flex-shrink-0">
+            <button id="admin-tab-btn-pets" onclick="switchAdminTab('pets')"
+                class="flex-1 py-3 text-xs font-bold text-teal-600 border-b-2 border-teal-600 transition-colors flex items-center justify-center gap-1">
+                <i class="ph-fill ph-paw-print text-base"></i> Animais
+            </button>
+            <button id="admin-tab-btn-interests" onclick="switchAdminTab('interests')"
+                class="flex-1 py-3 text-xs font-bold text-gray-400 border-b-2 border-transparent transition-colors flex items-center justify-center gap-1 relative">
+                <i class="ph-fill ph-users text-base"></i> Interessados
+                <span id="admin-interest-badge"
+                    class="bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full hidden">0</span>
+            </button>
+        </div>
+
+        <main id="admin-tab-pets" class="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar">
+            <div class="flex justify-between items-center mb-1">
+                <h2 class="text-sm font-bold text-gray-700">Animais Cadastrados</h2>
+                <button onclick="openPetFormModal()"
+                    class="bg-teal-600 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1 shadow-sm active:scale-95 transition-transform">
+                    <i class="ph-bold ph-plus text-sm"></i> Novo Pet
+                </button>
+            </div>
+
+            <div id="admin-pets-grid" class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-5 pb-6">
+            </div>
+    </main>
+
+    <main id="admin-tab-interests" class="flex-1 overflow-y-auto p-4 hidden space-y-3 no-scrollbar">
+        <h2 class="text-sm font-bold text-gray-700 mb-2">Interesses Demonstrados por Adotantes</h2>
+        <div id="admin-interests-list" class="space-y-3 pb-6">
+        </div>
+    </main>
+    </div>
+
+    <div id="view-profile" class="fixed inset-0 bg-white hidden z-50 flex-col overflow-hidden w-full h-full">
+        <div class="bg-white/90 backdrop-blur-md z-10 px-6 py-5 border-b border-gray-100 shadow-sm flex-shrink-0">
+            <h2 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                <i class="ph-fill ph-magic-wand text-teal-600"></i> Seu Perfil de Adoção
+            </h2>
+            <p class="text-gray-500 text-sm mt-1">Responda para encontrarmos o match perfeito e seguro!</p>
+        </div>
+
+        <div class="flex-1 min-h-0 overflow-y-auto overscroll-y-auto p-6 space-y-10 pb-36 no-scrollbar"
+            style="touch-action: pan-y;">
+
+            <div class="space-y-6">
+                <div class="flex items-center gap-3 border-b border-gray-100 pb-2">
+                    <span
+                        class="bg-teal-100 text-teal-700 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm">1</span>
+                    <h3 class="text-lg font-bold text-gray-800">O Pet Ideal</h3>
+                </div>
+
+                <div>
+                    <label class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 block">Espécie
+                        Preferida</label>
+                    <div class="grid grid-cols-3 gap-3">
+                        <label class="cursor-pointer">
+                            <input type="radio" name="p-species" value="cão" class="peer hidden">
+                            <div
+                                class="h-24 p-2 border-2 border-gray-100 rounded-2xl flex flex-col items-center justify-center gap-2 peer-checked:border-teal-600 peer-checked:bg-teal-50 peer-checked:text-teal-700 text-gray-400 hover:bg-gray-50 transition-all">
+                                <i class="ph-fill ph-dog text-3xl"></i>
+                                <span class="text-xs font-bold text-center">Cachorro</span>
+                            </div>
+                        </label>
+                        <label class="cursor-pointer">
+                            <input type="radio" name="p-species" value="gato" class="peer hidden">
+                            <div
+                                class="h-24 p-2 border-2 border-gray-100 rounded-2xl flex flex-col items-center justify-center gap-2 peer-checked:border-teal-600 peer-checked:bg-teal-50 peer-checked:text-teal-700 text-gray-400 hover:bg-gray-50 transition-all">
+                                <i class="ph-fill ph-cat text-3xl"></i>
+                                <span class="text-xs font-bold text-center">Gato</span>
+                            </div>
+                        </label>
+                        <label class="cursor-pointer">
+                            <input type="radio" name="p-species" value="" class="peer hidden" checked>
+                            <div
+                                class="h-24 p-2 border-2 border-gray-100 rounded-2xl flex flex-col items-center justify-center gap-2 peer-checked:border-teal-600 peer-checked:bg-teal-50 peer-checked:text-teal-700 text-gray-400 hover:bg-gray-50 transition-all">
+                                <i class="ph-fill ph-paw-print text-3xl"></i>
+                                <span class="text-xs font-bold text-center">Ambos</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 block">Porte do
+                        Pet</label>
+                    <div class="grid grid-cols-4 gap-2">
+                        <label class="cursor-pointer">
+                            <input type="radio" name="p-size" value="" class="peer hidden" checked>
+                            <div
+                                class="p-3 border-2 border-gray-100 rounded-xl flex justify-center items-center peer-checked:border-teal-600 peer-checked:bg-teal-50 peer-checked:text-teal-700 text-gray-400 transition-all text-xs font-bold">
+                                Todos</div>
+                        </label>
+                        <label class="cursor-pointer">
+                            <input type="radio" name="p-size" value="pequeno" class="peer hidden">
+                            <div
+                                class="p-3 border-2 border-gray-100 rounded-xl flex justify-center items-center peer-checked:border-teal-600 peer-checked:bg-teal-50 peer-checked:text-teal-700 text-gray-400 transition-all text-xs font-bold">
+                                Pequeno</div>
+                        </label>
+                        <label class="cursor-pointer">
+                            <input type="radio" name="p-size" value="médio" class="peer hidden">
+                            <div
+                                class="p-3 border-2 border-gray-100 rounded-xl flex justify-center items-center peer-checked:border-teal-600 peer-checked:bg-teal-50 peer-checked:text-teal-700 text-gray-400 transition-all text-xs font-bold">
+                                Médio</div>
+                        </label>
+                        <label class="cursor-pointer">
+                            <input type="radio" name="p-size" value="grande" class="peer hidden">
+                            <div
+                                class="p-3 border-2 border-gray-100 rounded-xl flex justify-center items-center peer-checked:border-teal-600 peer-checked:bg-teal-50 peer-checked:text-teal-700 text-gray-400 transition-all text-xs font-bold">
+                                Grande</div>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 block">Idade
+                            Desejada</label>
+                        <select id="p-age"
+                            class="w-full p-3 border-2 border-gray-100 rounded-xl bg-white text-gray-700 font-medium focus:outline-none focus:border-teal-600 text-sm">
+                            <option value="">Qualquer</option>
+                            <option value="filhote">Filhote</option>
+                            <option value="adulto">Adulto</option>
+                            <option value="idoso">Idoso</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 block">Objetivo da
+                            Adoção</label>
+                        <select id="p-purpose"
+                            class="w-full p-3 border-2 border-gray-100 rounded-xl bg-white text-gray-700 font-medium focus:outline-none focus:border-teal-600 text-sm">
+                            <option value="companhia" selected>Companhia / Pet de estimação</option>
+                            <option value="guarda">Cão de Guarda / Alerta</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="space-y-6">
+                <div class="flex items-center gap-3 border-b border-gray-100 pb-2">
+                    <span
+                        class="bg-blue-100 text-blue-600 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm">2</span>
+                    <h3 class="text-lg font-bold text-gray-800">Seu Estilo de Vida</h3>
+                </div>
+
+                <div>
+                    <label class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 block">Tipo de
+                        Moradia</label>
+                    <div class="grid grid-cols-3 gap-3">
+                        <label class="cursor-pointer">
+                            <input type="radio" name="p-housing" value="apartamento" class="peer hidden">
+                            <div
+                                class="h-24 p-2 border-2 border-gray-100 rounded-2xl flex flex-col items-center justify-center gap-2 peer-checked:border-blue-500 peer-checked:bg-blue-50 peer-checked:text-blue-600 text-gray-400 hover:bg-gray-50 transition-all">
+                                <i class="ph-fill ph-buildings text-3xl"></i>
+                                <span class="text-xs font-bold text-center">Apê</span>
+                            </div>
+                        </label>
+                        <label class="cursor-pointer">
+                            <input type="radio" name="p-housing" value="casa" class="peer hidden" checked>
+                            <div
+                                class="h-24 p-2 border-2 border-gray-100 rounded-2xl flex flex-col items-center justify-center gap-2 peer-checked:border-blue-500 peer-checked:bg-blue-50 peer-checked:text-blue-600 text-gray-400 hover:bg-gray-50 transition-all">
+                                <i class="ph-fill ph-house-line text-3xl"></i>
+                                <span class="text-xs font-bold text-center">Casa</span>
+                            </div>
+                        </label>
+                        <label class="cursor-pointer">
+                            <input type="radio" name="p-housing" value="casa_quintal" class="peer hidden">
+                            <div
+                                class="h-24 p-2 border-2 border-gray-100 rounded-2xl flex flex-col items-center justify-center gap-2 peer-checked:border-blue-500 peer-checked:bg-blue-50 peer-checked:text-blue-600 text-gray-400 hover:bg-gray-50 transition-all">
+                                <i class="ph-fill ph-tree text-3xl"></i>
+                                <span class="text-xs font-bold text-center">Quintal</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 block">Nível de
+                            Atividade</label>
+                        <select id="p-activity-select"
+                            class="w-full p-3 border-2 border-gray-100 rounded-xl bg-white text-gray-700 font-medium focus:outline-none focus:border-blue-500 text-sm">
+                            <option value="sedentario">Tranquilo / Calmo</option>
+                            <option value="moderado" selected>Moderado</option>
+                            <option value="ativo">Ativo / Pratica Esportes</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 block">Rotina
+                            Diária</label>
+                        <select id="p-routine"
+                            class="w-full p-3 border-2 border-gray-100 rounded-xl bg-white text-gray-700 font-medium focus:outline-none focus:border-blue-500 text-sm">
+                            <option value="fica_em_casa">Fico em casa / Home Office</option>
+                            <option value="trabalho_fora">Trabalho fora o dia todo</option>
+                            <option value="viajo_frequente">Viajo frequentemente</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="space-y-6">
+                <div class="flex items-center gap-3 border-b border-gray-100 pb-2">
+                    <span
+                        class="bg-green-100 text-green-600 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm">3</span>
+                    <h3 class="text-lg font-bold text-gray-800">Convivência e Inclusão</h3>
+                </div>
+
+                <div class="bg-gray-50 p-4 rounded-2xl border border-gray-100 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2 text-gray-700 font-medium text-sm">
+                            <i class="ph-fill ph-baby text-xl text-gray-400"></i> Tem crianças em casa?
+                        </div>
+                        <div
+                            class="relative inline-block w-12 align-middle select-none transition duration-200 ease-in">
+                            <input type="checkbox" id="p-kids"
+                                class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer transition-transform" />
+                            <label for="p-kids"
+                                class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
+                        </div>
+                    </div>
+                    <hr class="border-gray-200">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2 text-gray-700 font-medium text-sm">
+                            <i class="ph-fill ph-paw-print text-xl text-gray-400"></i> Já tem outros pets?
+                        </div>
+                        <div
+                            class="relative inline-block w-12 align-middle select-none transition duration-200 ease-in">
+                            <input type="checkbox" id="p-otherPets"
+                                class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer transition-transform" />
+                            <label for="p-otherPets"
+                                class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
+                        </div>
+                    </div>
+                    <hr class="border-gray-200">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2 text-gray-700 font-medium text-sm">
+                            <i class="ph-fill ph-first-aid text-xl text-teal-600"></i> Aceita adotar pets
+                            PCD/Crônicos?
+                        </div>
+                        <div
+                            class="relative inline-block w-12 align-middle select-none transition duration-200 ease-in">
+                            <input type="checkbox" id="p-acceptSpecial"
+                                class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer transition-transform" />
+                            <label for="p-acceptSpecial"
+                                class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="space-y-6">
+                <div class="flex items-center gap-3 border-b border-gray-100 pb-2">
+                    <span
+                        class="bg-purple-100 text-purple-600 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm">4</span>
+                    <h3 class="text-lg font-bold text-gray-800">Segurança e Suporte Financeiro</h3>
+                </div>
+
+                <div>
+                    <label class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 block">Capacidade
+                        Financeira Estimada (Mensal p/ o Pet)</label>
+                    <select id="p-finance"
+                        class="w-full p-3 border-2 border-gray-100 rounded-xl bg-white text-gray-700 font-medium focus:outline-none focus:border-purple-500 text-sm">
+                        <option value="basico">Consigo arcar com o básico (Ração e Vacinas)</option>
+                        <option value="medio" selected>Intermediário (Ração Premium e Consultas)</option>
+                        <option value="pleno">Completo (Ração Super Premium, Veterinário e Emergências)</option>
+                    </select>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 block">Documento de
+                            Identidade (RG/CNH)</label>
+                        <div class="flex items-center justify-center w-full">
+                            <label
+                                class="flex flex-col w-full h-20 border-2 border-dashed border-gray-200 hover:bg-gray-50 rounded-xl justify-center items-center cursor-pointer transition-colors p-2">
+                                <i class="ph ph-identification-card text-2xl text-gray-400"></i>
+                                <span class="text-xs text-gray-500 font-medium text-center mt-1" id="lbl-file-id">Enviar
+                                    foto do Doc</span>
+                                <input type="file" id="p-docId" class="hidden"
+                                    onchange="updateFileLabel('p-docId', 'lbl-file-id')" />
+                            </label>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 block">Comprovante
+                            de Residência</label>
+                        <div class="flex items-center justify-center w-full">
+                            <label
+                                class="flex flex-col w-full h-20 border-2 border-dashed border-gray-200 hover:bg-gray-50 rounded-xl justify-center items-center cursor-pointer transition-colors p-2">
+                                <i class="ph ph-file-text text-2xl text-gray-400"></i>
+                                <span class="text-xs text-gray-500 font-medium text-center mt-1"
+                                    id="lbl-file-res">Enviar Comprovante</span>
+                                <input type="file" id="p-docRes" class="hidden"
+                                    onchange="updateFileLabel('p-docRes', 'lbl-file-res')" />
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <div
+            class="absolute bottom-0 left-0 w-full p-4 bg-gradient-to-t from-white via-white/90 to-transparent z-20 pointer-events-none">
+            <button onclick="saveProfile()"
+                class="w-full bg-teal-600 text-white py-4 rounded-xl font-bold shadow-lg shadow-teal-200 active:scale-95 transition-transform flex items-center justify-center gap-2 pointer-events-auto">
+                Encontrar meu match <i class="ph-bold ph-arrow-right"></i>
+            </button>
+        </div>
+    </div>
+
+    <div id="app"
+        class="hidden relative w-full max-w-md h-[100dvh] sm:h-[90vh] sm:rounded-3xl bg-white shadow-2xl flex flex-col overflow-hidden sm:border sm:border-gray-200">
+
+        <header class="flex justify-between items-center p-4 border-b border-gray-100 z-20 bg-white flex-shrink-0">
+            <div class="w-10"></div>
+            <h1 class="text-xl font-bold text-gray-800 tracking-tight flex items-center gap-1">
+                <i class="ph-fill ph-paw-print text-teal-600"></i> Adota Aí
+            </h1>
+            <div class="w-10"></div>
+        </header>
+
+        <main id="view-swipe" class="flex-1 flex flex-col relative w-full h-full p-4 overflow-hidden bg-gray-50 pb-24">
+            <div class="px-2 mb-3 z-30">
+                <button onclick="toggleFilterMenu()"
+                    class="w-full flex items-center justify-between bg-white border border-gray-200 p-3 rounded-xl shadow-sm text-gray-700 font-medium active:scale-[0.98] transition-transform text-sm">
+                    <span class="flex items-center gap-2"><i class="ph ph-sliders"></i> Filtros de Busca</span>
+                    <i id="filter-icon" class="ph ph-caret-down"></i>
+                </button>
+
+                <div id="filter-menu"
+                    class="hidden mt-2 bg-white border border-gray-200 rounded-2xl p-4 shadow-xl space-y-4 absolute left-4 right-4 z-40">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-xs font-bold text-gray-400 uppercase">Espécie</label>
+                            <select id="filter-species"
+                                class="w-full p-2 bg-gray-50 border-none rounded-lg text-sm focus:ring-0">
+                                <option value="">Todos</option>
+                                <option value="cão">Cachorros</option>
+                                <option value="gato">Gatos</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-xs font-bold text-gray-400 uppercase">Porte</label>
+                            <select id="filter-size"
+                                class="w-full p-2 bg-gray-50 border-none rounded-lg text-sm focus:ring-0">
+                                <option value="">Todos</option>
+                                <option value="pequeno">Pequeno</option>
+                                <option value="médio">Médio</option>
+                                <option value="grande">Grande</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-xs font-bold text-gray-400 uppercase">Especial / PCD</label>
+                            <select id="filter-special"
+                                class="w-full p-2 bg-gray-50 border-none rounded-lg text-sm focus:ring-0">
+                                <option value="">Todos</option>
+                                <option value="true">Apenas PCD/Crônicos</option>
+                                <option value="false">Sem condições especiais</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-xs font-bold text-gray-400 uppercase">Crianças</label>
+                            <select id="filter-kids"
+                                class="w-full p-2 bg-gray-50 border-none rounded-lg text-sm focus:ring-0">
+                                <option value="">Indiferente</option>
+                                <option value="true">Bom p/ crianças</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button onclick="applyFilters()"
+                        class="w-full bg-teal-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-teal-200 active:scale-95 transition-transform text-sm">
+                        Aplicar Filtros
+                    </button>
+                </div>
+            </div>
+
+            <div id="cards-container" class="card-container flex-1 mb-4 relative z-10"></div>
+
+            <div id="empty-state"
+                class="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-gray-50 z-0 hidden">
+                <div class="w-20 h-20 bg-teal-100 rounded-full flex items-center justify-center mb-4">
+                    <i class="ph-fill ph-check-circle text-4xl text-teal-600"></i>
+                </div>
+                <h2 class="text-xl font-bold text-gray-800 mb-2">Você viu todos!</h2>
+                <p class="text-sm text-gray-500 mb-6 px-4">Não há mais pets na sua região no momento de acordo com seus
+                    critérios.</p>
+                <button onclick="resetApp()"
+                    class="px-6 py-2.5 bg-white border-2 border-teal-600 text-teal-600 text-sm font-bold rounded-full shadow hover:bg-teal-50 active:scale-95 transition-transform">
+                    Ver Novamente
+                </button>
+            </div>
+        </main>
+        <section id="view-interests" class="hidden flex-1 overflow-y-auto px-4 pt-5 pb-28">
+
+            <div class="max-w-3xl mx-auto">
+
+                <div class="mb-5">
+                    <h2 class="text-2xl font-bold text-gray-800">
+                        Meus Interesses
+                    </h2>
+
+                    <p class="text-sm text-gray-500 mt-1">
+                        Acompanhe os animais que você demonstrou interesse em adotar.
+                    </p>
+                </div>
+
+                <!-- Estado vazio -->
+                <div id="no-interests" class="hidden text-center py-16">
+
+                    <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-teal-50 flex items-center justify-center">
+
+                        <i class="ph-fill ph-paw-print text-3xl text-teal-500"></i>
+
+                    </div>
+
+                    <h3 class="font-bold text-gray-700">
+                        Nenhum interesse ainda
+                    </h3>
+
+                    <p class="text-sm text-gray-400 mt-1">
+                        Quando você demonstrar interesse em um animal,
+                        ele aparecerá aqui.
+                    </p>
+
+                </div>
+
+                <!-- Lista -->
+                <div id="user-interests-list" class="space-y-4">
+                </div>
+
+            </div>
+
+        </section>
+
+        <main id="view-liked"
+            class="flex-1 hidden flex-col w-full h-full bg-gray-50 overflow-y-auto no-scrollbar relative pb-24">
+            <div class="p-4 sm:p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-800">Seus Matches</h2>
+                        <p class="text-gray-500 text-sm mt-1">Inicie o processo de adoção com a ONG.</p>
+                    </div>
+                </div>
+
+                <div id="liked-grid" class="grid grid-cols-2 gap-4"></div>
+
+                <div id="no-likes" class="flex flex-col items-center justify-center py-16 text-center text-gray-400">
+                    <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                        <i class="ph-fill ph-heart-break text-3xl text-gray-300"></i>
+                    </div>
+                    <p class="font-medium text-sm text-gray-500">Você ainda não curtiu nenhum pet.</p>
+                    <p class="text-xs mt-1">Dê alguns likes para vê-los aqui!</p>
+                </div>
+            </div>
+        </main>
+
+        <main id="view-settings-tab"
+            class="flex-1 hidden flex-col w-full h-full bg-gray-50 overflow-y-auto no-scrollbar relative pb-24">
+            <div class="p-4 sm:p-6">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-6 text-center">
+                    <div
+                        class="w-20 h-20 bg-teal-100 rounded-full flex items-center justify-center mx-auto mb-3 border-4 border-white shadow-md relative">
+                        <i class="ph-fill ph-user text-4xl text-teal-600"></i>
+                    </div>
+                    <h3 class="font-bold text-base text-gray-800 truncate" id="profile-user-email">usuario@email.com
+                    </h3>
+                    <p class="text-gray-500 text-xs mt-1"><i class="ph-fill ph-map-pin mr-1 text-teal-600"></i>
+                        Itapetininga - SP</p>
+                    <div
+                        class="mt-2 inline-block bg-green-100 text-green-700 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                        <i class="ph-fill ph-shield-check"></i> Perfil Verificado
+                    </div>
+                </div>
+
+                <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 px-2">Configurações</h4>
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 mb-6 overflow-hidden text-sm">
+
+                    <button onclick="openProfileEdit()"
+                        class="w-full flex items-center justify-between p-4 border-b border-gray-50 hover:bg-gray-50 active:bg-gray-100 transition-colors">
+                        <div class="flex items-center gap-3">
+                            <div class="bg-blue-100 p-2 rounded-lg text-blue-600">
+                                <i class="ph-fill ph-list-magnifying-glass text-lg"></i>
+                            </div>
+                            <span class="font-medium text-gray-700">Refazer Quiz de Compatibilidade</span>
+                        </div>
+                        <i class="ph-bold ph-caret-right text-gray-400"></i>
+                    </button>
+                    <div>
+
+                        <div class="w-full flex items-center justify-between p-4 border-b border-gray-50">
+                            <div class="flex items-center gap-3">
+                                <div class="bg-green-100 p-2 rounded-lg text-green-600">
+                                    <i class="ph-fill ph-bell text-lg"></i>
+                                </div>
+                                <span class="font-medium text-gray-700">Notificações Push</span>
+                            </div>
+                            <div
+                                class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+                                <input type="checkbox" name="toggle" id="toggle"
+                                    class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer transition-transform"
+                                    checked />
+                                <label for="toggle"
+                                    class="toggle-label block overflow-hidden h-5 rounded-full bg-gray-300 cursor-pointer"></label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-3">
+                        <button onclick="logout()"
+                            class="w-full bg-white border border-gray-200 text-gray-700 font-bold py-3 rounded-xl flex items-center justify-center gap-2 text-sm shadow-sm hover:bg-gray-50 active:scale-95 transition-transform">
+                            <i class="ph-bold ph-sign-out text-base"></i> Sair da Conta
+                        </button>
+
+                        <button onclick="deleteAccount()"
+                            class="w-full text-red-500 font-medium py-2 text-xs flex items-center justify-center gap-2 hover:bg-red-50 transition-colors">
+                            <i class="ph-bold ph-trash"></i> Excluir minha conta
+                        </button>
+                    </div>
+                </div>
+        </main>
+
+        <nav
+            class="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-100 h-16 flex justify-around items-center z-30 px-4 shadow-[0_-4px_12px_rgba(0,0,0,0.03)] flex-shrink-0">
+            <button id="nav-tab-swipe" onclick="switchTab('swipe')"
+                class="flex flex-col items-center justify-center text-teal-600 flex-1 h-full transition-all">
+                <i class="ph-fill ph-paw-print text-2xl"></i>
+                <span class="text-[10px] font-bold mt-0.5">Descobrir</span>
+            </button>
+            <button id="nav-tab-liked" onclick="switchTab('liked')"
+                class="flex flex-col items-center justify-center text-gray-400 flex-1 h-full relative transition-all">
+                <i class="ph-fill ph-heart text-2xl"></i>
+                <span class="text-[10px] font-bold mt-0.5">Matches</span>
+                <span id="liked-badge"
+                    class="absolute top-2 right-6 bg-red-500 text-white text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center hidden border border-white">0</span>
+            </button>
+            <button id="nav-tab-interests" onclick="switchTab('interests')"
+                class="flex flex-col items-center justify-center text-gray-400 flex-1 h-full transition-all relative">
+
+                <div class="relative">
+
+                    <i class="ph-bold ph-chat-circle-dots text-2xl"></i>
+
+                    <span id="interest-badge"
+                        class="hidden absolute -top-2 -right-3 bg-teal-500 text-white text-[9px] font-bold min-w-[16px] h-4 px-1 rounded-full items-center justify-center">
+                        0
+                    </span>
+
+                </div>
+
+                <span class="text-[10px] mt-1 font-semibold">
+                    Interesses
+                </span>
+
+            </button>
+            <button id="nav-tab-settings" onclick="switchTab('settings')"
+                class="flex flex-col items-center justify-center text-gray-400 flex-1 h-full transition-all">
+                <i class="ph-fill ph-user text-2xl"></i>
+                <span class="text-[10px] font-bold mt-0.5">Perfil</span>
+            </button>
+        </nav>
+
+    </div>
+
+    <div id="pet-modal" class="fixed inset-0 bg-black/70 hidden items-center justify-center z-50 backdrop-blur-sm p-4">
+        <div
+            class="bg-white w-full max-w-md rounded-3xl overflow-hidden shadow-2xl transform scale-100 transition-transform max-h-[90vh] flex flex-col">
+            <div class="relative h-60 flex-shrink-0">
+                <img id="modal-img" class="w-full h-full object-cover">
+                <button onclick="closeModal()"
+                    class="absolute top-4 right-4 bg-black/50 text-white rounded-full w-11 h-11 flex items-center justify-center backdrop-blur-md hover:bg-black/70 transition-colors">
+                    <i class="ph-bold ph-x text-base"></i>
+                </button>
+                <div
+                    class="absolute bottom-0 w-full p-5 bg-gradient-to-t from-black/90 via-black/40 to-transparent text-white">
+                    <h2 id="modal-name" class="text-2xl font-bold"></h2>
+                    <p id="modal-breed" class="text-xs text-gray-200 font-medium mt-0.5"></p>
+                </div>
+            </div>
+
+            <div class="p-5 space-y-4 overflow-y-auto no-scrollbar flex-1 text-sm">
+                <div class="grid grid-cols-2 gap-2 text-xs font-medium text-gray-600 bg-gray-50 p-2.5 rounded-xl">
+                    <span id="modal-age" class="flex items-center gap-1"><i class="ph-fill ph-clock"></i></span>
+                    <span id="modal-city" class="flex items-center gap-1 text-teal-700"><i
+                            class="ph-fill ph-map-pin"></i></span>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                    <div
+                        class="bg-teal-50 border border-teal-100 p-2.5 rounded-xl text-teal-900 flex items-center gap-1.5">
+                        <i class="ph-fill ph-arrows-out"></i> Porte: <span id="modal-size"
+                            class="font-bold capitalize"></span>
+                    </div>
+                    <div
+                        class="bg-purple-50 border border-purple-100 p-2.5 rounded-xl text-purple-800 flex items-center gap-1.5">
+                        <i class="ph-fill ph-shield"></i> <span id="modal-castrated" class="font-bold">Castrado</span>
+                    </div>
+                </div>
+
+                <div class="bg-blue-50 border border-blue-100 p-3.5 rounded-xl text-xs">
+                    <strong class="text-blue-800 flex items-center gap-2 mb-1"><i class="ph-fill ph-heartbeat"></i>
+                        Saúde e Cuidados:</strong>
+                    <p id="modal-medical" class="text-blue-900"></p>
+                </div>
+
+                <div class="text-xs text-gray-700 px-1 space-y-2">
+                    <div>
+                        <strong class="text-gray-900 block mb-0.5">Histórico do Resgate:</strong>
+                        <p id="modal-past" class="leading-relaxed text-gray-600"></p>
+                    </div>
+                    <div>
+                        <strong class="text-gray-900 block mb-0.5">Sobre:</strong>
+                        <p id="modal-desc" class="leading-relaxed text-gray-600"></p>
+                    </div>
+                </div>
+
+                <div id="modal-user-actions" class="space-y-3 pt-2">
+
+                    <div class="bg-teal-50 border border-teal-200 rounded-xl p-3">
+                        <p class="text-xs text-teal-800 flex items-start gap-2">
+                            <i class="ph-fill ph-info text-base mt-0.5"></i>
+
+                            <span>
+                                Ao demonstrar interesse, a ONG receberá seu
+                                e-mail e telefone cadastrados para entrar em contato.
+                            </span>
+                        </p>
+                    </div>
+
+                    <button onclick="fakeAdoptionAction()" class="w-full bg-teal-600 hover:bg-teal-700 text-white py-3.5
+               rounded-xl font-bold shadow-lg active:scale-95
+               transition-transform flex justify-center items-center
+               gap-2 text-sm">
+
+                        Tenho interesse em adotar
+
+                        <i class="ph-fill ph-paw-print"></i>
+                    </button>
+
+                </div>
+
+                <div id="modal-admin-actions" class="hidden grid grid-cols-2 gap-3 pt-2">
+                    <button id="btn-modal-edit" onclick=""
+                        class="bg-blue-500 text-white py-3 rounded-xl font-bold text-xs flex justify-center items-center gap-1.5 shadow-sm active:scale-95">
+                        <i class="ph-bold ph-pencil-simple text-base"></i> Editar Animal
+                    </button>
+                    <button id="btn-modal-delete" onclick=""
+                        class="bg-red-500 text-white py-3 rounded-xl font-bold text-xs flex justify-center items-center gap-1.5 shadow-sm active:scale-95">
+                        <i class="ph-bold ph-trash text-base"></i> Excluir Animal
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="pet-form-modal"
+        class="fixed inset-0 bg-black/70 hidden items-center justify-center z-50 backdrop-blur-sm p-4">
+        <div class="bg-white w-full max-w-md rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+            <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                <h3 id="pet-form-title" class="font-bold text-gray-800 text-base">Cadastrar Novo Pet</h3>
+                <button onclick="closePetFormModal()" class="text-gray-400 hover:text-gray-600 p-1">
+                    <i class="ph-bold ph-x text-lg"></i>
+                </button>
+            </div>
+
+            <form id="form-pet-editor" onsubmit="savePetForm(event)"
+                class="p-5 overflow-y-auto space-y-3 no-scrollbar text-xs">
+                <input type="hidden" id="pet-form-id">
+
+                <div>
+                    <label class="font-bold text-gray-600 block mb-1">Nome do Pet*</label>
+                    <input type="text" id="pet-form-name" required
+                        class="w-full p-2.5 border rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-teal-600">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="font-bold text-gray-600 block mb-1">Sexo*</label>
+                        <select id="pet-form-sex" required
+                            class="w-full p-2.5 border rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-teal-600">
+                            <option value="Macho">Macho</option>
+                            <option value="Fêmea">Fêmea</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="font-bold text-gray-600 block mb-1">Espécie*</label>
+                        <select id="pet-form-species" required
+                            class="w-full p-2.5 border rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-teal-600">
+                            <option value="cão">Cão</option>
+                            <option value="gato">Gato</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="font-bold text-gray-600 block mb-1">Data de Nascimento*</label>
+                        <input type="date" id="pet-form-birthdate" required onchange="previewPetAge()"
+                            class="w-full p-2.5 border rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-teal-600">
+                        <span id="pet-age-preview" class="text-[10px] text-teal-700 font-bold block mt-1"></span>
+                    </div>
+                    <div>
+                        <label class="font-bold text-gray-600 block mb-1">Porte*</label>
+                        <select id="pet-form-size" required
+                            class="w-full p-2.5 border rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-teal-600">
+                            <option value="pequeno">Pequeno</option>
+                            <option value="médio">Médio</option>
+                            <option value="grande">Grande</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="font-bold text-gray-600 block mb-1">Raça*</label>
+                        <input type="text" id="pet-form-breed" placeholder="Ex: Sem Raça Definida" required
+                            class="w-full p-2.5 border rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-teal-600">
+                    </div>
+                    <div>
+                        <label class="font-bold text-gray-600 block mb-1">Cidade*</label>
+                        <input type="text" id="pet-form-city" placeholder="Ex: Itapetininga" required
+                            class="w-full p-2.5 border rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-teal-600">
+                    </div>
+                </div>
+
+                <!-- Opções de Imagem -->
+                <div>
+                    <label class="font-bold text-gray-600 block mb-1">Foto do Pet*</label>
+                    <div class="flex gap-2 mb-2">
+                        <button type="button" onclick="setImgSourceMode('file')" id="btn-mode-file"
+                            class="flex-1 py-1.5 px-2 bg-teal-600 text-white rounded-lg font-bold text-[11px] flex items-center justify-center gap-1">
+                            <i class="ph-bold ph-upload-simple"></i> Arquivo
+                        </button>
+                        <button type="button" onclick="setImgSourceMode('camera')" id="btn-mode-camera"
+                            class="flex-1 py-1.5 px-2 bg-gray-100 text-gray-600 rounded-lg font-bold text-[11px] flex items-center justify-center gap-1">
+                            <i class="ph-bold ph-camera"></i> Câmera
+                        </button>
+                        <button type="button" onclick="setImgSourceMode('url')" id="btn-mode-url"
+                            class="flex-1 py-1.5 px-2 bg-gray-100 text-gray-600 rounded-lg font-bold text-[11px] flex items-center justify-center gap-1">
+                            <i class="ph-bold ph-link"></i> Link
+                        </button>
+                    </div>
+
+                    <input type="hidden" id="pet-form-img-value">
+
+                    <!-- Modos de upload -->
+                    <div id="img-input-file" class="block">
+                        <input type="file" id="pet-file-input" accept="image/*" onchange="handleImageFileSelect(event)"
+                            class="w-full p-2 border rounded-xl bg-gray-50 text-xs">
+                    </div>
+
+                    <div id="img-input-camera" class="hidden">
+                        <input type="file" id="pet-camera-input" accept="image/*" capture="environment"
+                            onchange="handleImageFileSelect(event)"
+                            class="w-full p-2 border rounded-xl bg-gray-50 text-xs">
+                    </div>
+
+                    <div id="img-input-url" class="hidden">
+                        <input type="url" id="pet-form-img-url" placeholder="https://..."
+                            onchange="document.getElementById('pet-form-img-value').value = this.value; updateImgPreview(this.value)"
+                            class="w-full p-2.5 border rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-teal-600">
+                    </div>
+
+                    <!-- Preview da imagem -->
+                    <div id="img-preview-container"
+                        class="mt-2 hidden flex-col items-center justify-center border p-2 rounded-xl bg-gray-50">
+                        <img id="img-preview" class="h-28 w-28 object-cover rounded-lg shadow-sm">
+                        <span class="text-[10px] text-green-600 font-bold mt-1">✓ Imagem Selecionada</span>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="font-bold text-gray-600 block mb-1">Saúde e Cuidados Médico</label>
+                    <input type="text" id="pet-form-medical" placeholder="Ex: Vacinado, vermifugado"
+                        class="w-full p-2.5 border rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-teal-600">
+                </div>
+
+                <div>
+                    <label class="font-bold text-gray-600 block mb-1">Histórico do Resgate</label>
+                    <textarea id="pet-form-past" rows="2"
+                        class="w-full p-2.5 border rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-teal-600"></textarea>
+                </div>
+
+                <div>
+                    <label class="font-bold text-gray-600 block mb-1">Descrição / Sobre</label>
+                    <textarea id="pet-form-desc" rows="2"
+                        class="w-full p-2.5 border rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-teal-600"></textarea>
+                </div>
+
+                <div class="flex items-center gap-4 pt-1">
+                    <label class="flex items-center gap-1.5 cursor-pointer font-bold text-gray-700">
+                        <input type="checkbox" id="pet-form-castrated"
+                            class="rounded text-teal-600 focus:ring-teal-600"> Castrado
+                    </label>
+                    <label class="flex items-center gap-1.5 cursor-pointer font-bold text-gray-700">
+                        <input type="checkbox" id="pet-form-specialNeed"
+                            class="rounded text-teal-600 focus:ring-teal-600"> Necessidade Especial/PCD
+                    </label>
+                </div>
+
+                <div class="pt-3">
+                    <button type="submit"
+                        class="w-full bg-teal-600 text-white py-3 rounded-xl font-bold text-sm active:scale-95 transition-transform shadow-md">
+                        Salvar Animal
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div id="chat-modal"
+        class="hidden fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm items-center justify-center p-0 md:p-4">
+
+        <div
+            class="chat-window bg-white w-full h-full md:h-[650px] md:max-w-lg md:rounded-3xl shadow-2xl flex flex-col overflow-hidden">
+
+            <!-- Cabeçalho -->
+            <div class="flex items-center gap-3 px-4 py-3 border-b border-gray-100 bg-white">
+
+                <button onclick="closeChat()"
+                    class="w-10 h-10 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-600">
+
+                    <i class="ph-bold ph-arrow-left text-xl"></i>
+
+                </button>
+
+                <img id="chat-pet-image" src="" alt="" class="w-11 h-11 rounded-full object-cover bg-gray-100">
+
+                <div class="flex-1 min-w-0">
+
+                    <h3 id="chat-title" class="font-bold text-gray-800 truncate">
+                        Conversa
+                    </h3>
+
+                    <p id="chat-subtitle" class="text-xs text-gray-400 truncate">
+                        ONG Adota Aí
+                    </p>
+
+                </div>
+
+                <div class="w-9 h-9 rounded-full bg-teal-50 flex items-center justify-center">
+
+                    <i class="ph-fill ph-paw-print text-teal-600"></i>
+
+                </div>
+
+            </div>
+
+            <!-- Informações do interesse -->
+            <div id="chat-interest-info" class="px-4 py-2 bg-teal-50 text-xs text-teal-700 border-b border-teal-100">
+            </div>
+
+            <!-- Mensagens -->
+            <div id="chat-messages" class="chat-messages flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50">
+
+            </div>
+
+            <!-- Envio -->
+            <form onsubmit="sendChatMessage(event)" class="p-3 border-t border-gray-100 bg-white flex items-end gap-2">
+
+                <textarea id="chat-input" rows="1" maxlength="500" placeholder="Digite uma mensagem..."
+                    class="chat-input flex-1 resize-none bg-gray-100 border border-transparent focus:border-teal-400 focus:bg-white outline-none rounded-2xl px-4 py-3 text-sm max-h-28"></textarea>
+
+                <button type="submit"
+                    class="w-11 h-11 shrink-0 rounded-full bg-teal-600 hover:bg-teal-700 text-white flex items-center justify-center transition-colors">
+
+                    <i class="ph-fill ph-paper-plane-tilt text-xl"></i>
+
+                </button>
+
+            </form>
+
+        </div>
+
+    </div>
+
+    <script src="js/app.js"></script>
+</body>
+
+</html>
