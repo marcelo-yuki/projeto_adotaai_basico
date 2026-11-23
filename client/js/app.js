@@ -665,29 +665,25 @@ function updateFileLabel(inputId, labelId) {
 
 function saveProfile() {
     const species = document.querySelector('input[name="p-species"]:checked')?.value || "";
-    const size = document.querySelector('input[name="p-size"]:checked')?.value || "";
+    const size = document.getElementById('p-size').value;
     const age = document.getElementById('p-age').value;
-    const purpose = document.getElementById('p-purpose').value;
     const housing = document.querySelector('input[name="p-housing"]:checked')?.value || "casa";
     const activity = document.getElementById('p-activity-select').value;
     const routine = document.getElementById('p-routine').value;
     const kids = document.getElementById('p-kids').checked;
     const otherPets = document.getElementById('p-otherPets').checked;
     const acceptSpecial = document.getElementById('p-acceptSpecial').checked;
-    const finance = document.getElementById('p-finance').value;
 
     userProfile = {
         species,
         size,
         age,
-        purpose,
         housing,
         activity,
         routine,
         kids,
         otherPets,
-        acceptSpecial,
-        finance
+        acceptSpecial
     };
 
     saveStorage();
