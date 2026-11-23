@@ -1,20 +1,62 @@
+
+import { backend } from './backend.js';
+import { supabase } from './supabase-client.js';
+
+function reportError(error) { console.error('Supabase:', error); alert(error?.message || 'Erro ao comunicar com o servidor.'); }
+function mapInterest(i) {
+    const p = i.perfis || {};
+    return {
+        id: i.id, petId: i.animal_id, petName: dbDogs.find(d => d.id === i.animal_id)?.name || 'Animal',
+        userEmail: p.email || currentUser?.email || '', phone: p.telefone || '',
+        date: new Date(i.criado_em).toLocaleDateString('pt-BR'), status: ({ 'pendente': 'Em análise', 'em_analise': 'Em análise', 'aprovado': 'Aprovado', 'recusado': 'Recusado', 'cancelado': 'Cancelado' })[i.status] || i.status
+    };
+}
+async function refreshData() {
+    dbDogs = await backend.animals.list();
+    if (!currentUser) return;
+    if (currentUser.role === 'admin') {
+        const managed = await backend.animals.managed();
+        managedDogs = managed;
+        const results = await Promise.all(managed.map(p => backend.interests.forAnimal(p.id)));
+        const unique = [...new Map(results.flat().map(i => [i.id, i])).values()];
+        adoptionInterests = unique.map(mapInterest);
+    } else {
+        const ids = await backend.likes.list();
+        likedDogs = ids.map(id => dbDogs.find(d => d.id === id)).filter(Boolean);
+        adoptionInterests = (await backend.interests.mine()).map(mapInterest);
+    }
+}
+async function refreshChat(interestId) {
+    const data = await backend.chat.list(interestId);
+    chatMessages = chatMessages.filter(m => m.interestId !== interestId).concat(data.map(m => ({
+        id: m.id, interestId: m.interesse_id, senderId: m.remetente_id, sender: m.remetente_id === currentUser?.id ? currentUser.email : 'Outro participante',
+        senderRole: m.remetente_id === currentUser?.id ? currentUser.role : 'other', message: m.conteudo,
+        timestamp: new Date(m.criado_em).getTime(), time: new Date(m.criado_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+    })));
+}
+async function enterApp() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const p = await backend.auth.profile();
+    currentUser = { id: user.id, email: user.email, phone: p.telefone, role: p.tipo === 'colaborador' ? 'admin' : 'user' };
+    userProfile = currentUser.role === 'admin' ? null : await backend.quiz.get();
+    await refreshData();
+    document.getElementById('view-auth').classList.add('hidden');
+    document.getElementById('view-admin').classList.add('hidden');
+    document.getElementById('app').classList.add('hidden');
+    document.getElementById('view-profile').classList.add('hidden');
+    document.getElementById('view-profile').classList.remove('flex');
+    if (currentUser.role === 'admin') {
+        document.getElementById('view-admin').classList.remove('hidden'); renderAdminPets(); renderAdminInterests();
+    } else {
+        document.getElementById('profile-user-email').innerText = currentUser.email;
+        if (!userProfile) { document.getElementById('view-profile').classList.remove('hidden'); document.getElementById('view-profile').classList.add('flex'); }
+        else { document.getElementById('app').classList.remove('hidden'); initApp(); }
+    }
+}
 // Dados Base Iniciais
 console.log("APP.JS NOVO CARREGADO");
-document.addEventListener('keydown', function (event) {
-    if (event.ctrlKey && event.shiftKey && event.key.toLowerCase() === 'l') {
-        event.preventDefault();
 
-        const confirmar = confirm(
-            'Deseja apagar todos os dados locais do Adota Aí?\n\n' +
-            'Usuários, sessão, perfil, curtidas e interesses serão apagados.'
-        );
-
-        if (confirmar) {
-            localStorage.clear();
-            location.reload();
-        }
-    }
-});
 const initialDogs = [
     { id: 1, name: "Caramelo", sex: "Macho", age: "2 anos", breed: "Sem Raça Definida", city: "Itapetininga", img: "https://revistaoeste.com/oestegeral/wp-content/uploads/2025/06/cachorro-caramelo_1749242700989.jpg", desc: "Clássico brasileiro. Cheio de energia, muito carinhoso e amigável.", size: "médio", species: "cão", medical: "Totalmente vacinado, V10 e Raiva em dia.", castrated: true, specialNeed: false, singlePet: false, purpose: "companhia", past: "Encontrado abandonado próximo à rodovia, estava desnutrido mas hoje goza de saúde perfeita." },
     { id: 2, name: "Luna", sex: "Fêmea", age: "6 meses", breed: "Labrador Mix", city: "Tatuí", species: "cão", size: "grande", medical: "Vacinada, vermifugada.", castrated: false, specialNeed: false, singlePet: false, purpose: "companhia", img: "https://images.unsplash.com/photo-1552053831-71594a27632d?q=80&w=600&auto=format&fit=crop", desc: "Filhote aprendendo a fazer xixi no lugar certo. Muito dócil e se dá bem com crianças.", past: "Nascida em uma ninhada de rua resgatada em um terreno baldio." },
@@ -46,21 +88,17 @@ const initialDogs = [
     { id: 30, name: "Rex", sex: "Macho", age: "5 anos", breed: "Sem Raça Definida", city: "Tatuí", species: "cão", size: "grande", medical: "Castrado e vacinado", castrated: true, specialNeed: false, singlePet: false, purpose: "guarda e companhia", img: "https://i0.wp.com/petcaramelo.com/wp-content/uploads/2019/02/cachorros-grandes-e-doceis.jpg?fit=645%2C380&ssl=1", desc: "Calmo e obediente, ótimo para guarda e companhia.", past: "Ex-cão de firma que faliu. Ficou para trás no terreno e foi resgatado pela equipe voluntária." }
 ];
 // Force a atualização dos dados de teste:
-let currentUser = JSON.parse(localStorage.getItem('currentUser')) || null;
-localStorage.setItem('dbDogs', JSON.stringify(initialDogs));
-let dbDogs = JSON.parse(localStorage.getItem('dbDogs')) || initialDogs;
-let users = JSON.parse(localStorage.getItem("users")) || [];
-let userProfile = JSON.parse(localStorage.getItem('profile')) || null;
+let currentUser = null;
+let dbDogs = [];
+let managedDogs = [];
+let users = [];
+let userProfile = null;
 let likedDogs = [];
-let adoptionInterests = JSON.parse(localStorage.getItem('adoptionInterests')) || [
-    { petId: 1, petName: "Caramelo", userEmail: "joao.adotante@gmail.com", date: "28/08/2026" }
-];
-
+let adoptionInterests = [];
+let chatMessages = [];
 let currentModalPetId = null;
-let chatMessages =
-    JSON.parse(localStorage.getItem('chatMessages')) || [];
-
 let currentChatInterestId = null;
+
 
 let dogsList = [];
 let isDragging = false;
@@ -68,92 +106,11 @@ let hasDragged = false;
 let startX = 0, startY = 0, currentX = 0, currentY = 0;
 let topCard = null;
 
-function getLikedDogsKey() {
-    if (!currentUser || !currentUser.email) return null;
+function getLikedDogsKey() { return null; }
 
-    return `likedDogs_${currentUser.email}`;
-}
-
-function loadLikedDogs() {
-    const key = getLikedDogsKey();
-
-    if (!key) {
-        likedDogs = [];
-        return;
-    }
-
-    likedDogs = JSON.parse(localStorage.getItem(key)) || [];
-}
-function saveStorage() {
-
-    localStorage.setItem(
-        'dbDogs',
-        JSON.stringify(dbDogs)
-    );
-
-    localStorage.setItem(
-        'users',
-        JSON.stringify(users)
-    );
-
-    localStorage.setItem(
-        'profile',
-        JSON.stringify(userProfile)
-    );
-
-    localStorage.setItem(
-        'adoptionInterests',
-        JSON.stringify(adoptionInterests)
-    );
-
-    localStorage.setItem(
-        'chatMessages',
-        JSON.stringify(chatMessages)
-    );
-
-    const likedDogsKey = getLikedDogsKey();
-
-    if (likedDogsKey) {
-        localStorage.setItem(
-            likedDogsKey,
-            JSON.stringify(likedDogs)
-        );
-    }
-
-    if (currentUser) {
-        localStorage.setItem(
-            'currentUser',
-            JSON.stringify(currentUser)
-        );
-    }
-
-}
-function ensureInterestIds() {
-
-    let changed = false;
-
-    adoptionInterests.forEach((interest, index) => {
-
-        if (!interest.id) {
-
-            interest.id =
-                Date.now() +
-                index +
-                Math.floor(Math.random() * 1000);
-
-            changed = true;
-        }
-
-    });
-
-    if (changed) {
-        localStorage.setItem(
-            'adoptionInterests',
-            JSON.stringify(adoptionInterests)
-        );
-    }
-
-}
+function loadLikedDogs() { return likedDogs; }
+function saveStorage() { /* Persistência realizada via Supabase. */ }
+function ensureInterestIds() { /* IDs gerados pelo PostgreSQL. */ }
 ensureInterestIds();
 function calculateAgeString(birthdateStr) {
     if (!birthdateStr) return "Idade não informada";
@@ -253,150 +210,32 @@ function toggleAuth(mode) {
     }
 }
 
-function login() {
-    const email = document.getElementById('login-email').value.trim();
-    const pass = document.getElementById('login-password').value.trim();
-
-    if (!email || !pass) {
-        alert("Preencha todos os campos!");
-        return;
-    }
-
-    // LOGIN ONG / ADMIN
-    if (email === "admin@gmail.com" && pass === "1234") {
-        currentUser = {
-            email: "admin@gmail.com",
-            role: "admin"
-        };
-
-        saveStorage();
-
-        document.getElementById('view-auth').classList.add('hidden');
-        document.getElementById('view-admin').classList.remove('hidden');
-
-        renderAdminPets();
-        renderAdminInterests();
-        return;
-    }
-
-    // LOGIN DO ADOTANTE
-    const user = users.find(
-        u => u.email === email && u.password === pass
-    );
-
-    if (!user) {
-        alert("E-mail ou senha incorretos.");
-        return;
-    }
-
-    // Mantém email, telefone, senha e role do usuário
-    currentUser = user;
-
-    loadLikedDogs();
-
-    saveStorage();
-
-    document.getElementById('profile-user-email').innerText = currentUser.email;
-
-    document.getElementById('view-auth').classList.add('hidden');
-
-    if (!userProfile) {
-        document.getElementById('view-profile').classList.remove('hidden');
-        document.getElementById('view-profile').classList.add('flex');
-    } else {
-        document.getElementById('app').classList.remove('hidden');
-        initApp();
-    }
+async function login() {
+    const email = document.getElementById('login-email').value.trim(), password = document.getElementById('login-password').value;
+    if (!email || !password) return alert('Preencha e-mail e senha.');
+    try { await backend.auth.login(email, password); await enterApp(); } catch (e) { reportError(e); }
 }
 
-function register() {
-    const email = document.getElementById('register-email').value.trim();
-    const phone = document.getElementById('register-phone').value.trim();
-    const password = document.getElementById('register-password').value;
-
-    if (!email || !phone || !password) {
-        alert("Preencha e-mail, telefone e senha para se cadastrar.");
-        return;
-    }
-
-    // Remove caracteres que não sejam números
-    const phoneNumbers = phone.replace(/\D/g, '');
-
-    // Validação básica de telefone brasileiro
-    if (phoneNumbers.length < 10 || phoneNumbers.length > 11) {
-        alert("Digite um telefone válido com DDD.");
-        return;
-    }
-
-    if (users.find(u => u.email === email)) {
-        alert("Este e-mail já está cadastrado.");
-        return;
-    }
-
-    // Telefone passa a fazer parte da conta do adotante
-    const newUser = {
-        email,
-        phone: phoneNumbers,
-        password,
-        role: 'user'
-    };
-
-    users.push(newUser);
-
-    // Login automático
-    currentUser = newUser;
-
-    likedDogs = [];
-
-    saveStorage();
-
-    alert("Conta criada com sucesso! Complete seu perfil a seguir.");
-
-    // Direciona direto para o Quiz/Perfil de adoção
-    document.getElementById('view-auth').classList.add('hidden');
-    document.getElementById('view-profile').classList.remove('hidden');
-    document.getElementById('view-profile').classList.add('flex');
+async function register() {
+    const email = document.getElementById('register-email').value.trim(), phone = document.getElementById('register-phone').value, password = document.getElementById('register-password').value;
+    if (!email || !phone || !password) return alert('Preencha todos os campos.');
+    try {
+        const result = await backend.auth.register(email, password, phone);
+        if (!result.session) { alert('Cadastro realizado. Confirme seu e-mail antes de entrar.'); toggleAuth('login'); return; }
+        await enterApp();
+    } catch (e) { reportError(e); }
 }
 
-function logout() {
-    // Remove somente a sessão atual
-    likedDogs = [];
-    currentUser = null;
-    localStorage.removeItem('currentUser');
-
-    // Esconde todas as telas internas
-    document.getElementById('view-admin').classList.add('hidden');
-    document.getElementById('app').classList.add('hidden');
-
-    document.getElementById('view-profile').classList.add('hidden');
-    document.getElementById('view-profile').classList.remove('flex');
-
-    // Mostra a tela de autenticação
-    document.getElementById('view-auth').classList.remove('hidden');
-
-    // SEMPRE volta para o formulário de login
-    document.getElementById('form-login').classList.remove('hidden');
-    document.getElementById('form-register').classList.add('hidden');
-
-    // Limpa os campos do login
-    document.getElementById('login-email').value = '';
-    document.getElementById('login-password').value = '';
-
-    // Limpa os campos do cadastro
-    document.getElementById('register-email').value = '';
-    document.getElementById('register-phone').value = '';
-    document.getElementById('register-password').value = '';
-
-    // Coloca o cursor no e-mail do login
-    document.getElementById('login-email').focus();
+async function logout() {
+    try {
+        await backend.auth.logout(); currentUser = null; userProfile = null; likedDogs = []; adoptionInterests = []; chatMessages = [];
+        document.getElementById('view-admin').classList.add('hidden'); document.getElementById('app').classList.add('hidden');
+        document.getElementById('view-profile').classList.add('hidden'); document.getElementById('view-profile').classList.remove('flex');
+        document.getElementById('view-auth').classList.remove('hidden'); toggleAuth('login');
+    } catch (e) { reportError(e); }
 }
 
-function deleteAccount() {
-    if (confirm("Tem certeza que deseja excluir sua conta?")) {
-        localStorage.clear();
-        location.reload();
-    }
-}
+function deleteAccount() { alert('Exclusão definitiva exige uma função segura no servidor. Nenhuma conta foi excluída.'); }
 
 // --- PAINEL DA ONG (ADMINISTRATIVO) ---
 function switchAdminTab(tab) {
@@ -417,7 +256,7 @@ function renderAdminPets() {
     const grid = document.getElementById('admin-pets-grid');
     grid.innerHTML = "";
 
-    dbDogs.forEach(pet => {
+    (managedDogs || dbDogs).forEach(pet => {
         const sexIcon = pet.sex === "Fêmea" ? '<i class="ph-bold ph-gender-female text-pink-500"></i>' : '<i class="ph-bold ph-gender-male text-blue-500"></i>';
 
         const card = document.createElement('div');
@@ -535,10 +374,9 @@ function renderAdminInterests() {
     });
 }
 
-function removeInterest(index) {
-    adoptionInterests.splice(index, 1);
-    saveStorage();
-    renderAdminInterests();
+async function removeInterest(index) {
+    const item = adoptionInterests[index]; if (!item || !confirm('Remover este interesse?')) return;
+    try { await backend.interests.remove(item.id); await refreshData(); renderAdminInterests(); } catch (e) { reportError(e); }
 }
 
 function openPetFormModal(petId = null) {
@@ -593,64 +431,34 @@ function closePetFormModal() {
     modal.classList.remove('flex');
 }
 
-function savePetForm(e) {
+async function savePetForm(e) {
     e.preventDefault();
-
     const idVal = document.getElementById('pet-form-id').value;
-    const imgVal = document.getElementById('pet-form-img-value').value;
-
-    if (!imgVal) {
-        alert("Por favor, selecione uma foto para o pet (arquivo, câmera ou link)!");
-        return;
-    }
-
-    const birthdate = document.getElementById('pet-form-birthdate').value;
-
-    const petData = {
-        id: idVal ? parseInt(idVal) : Date.now(),
-        name: document.getElementById('pet-form-name').value,
-        sex: document.getElementById('pet-form-sex').value,
-        species: document.getElementById('pet-form-species').value,
-        birthdate: birthdate,
-        age: calculateAgeString(birthdate),
-        size: document.getElementById('pet-form-size').value,
-        breed: document.getElementById('pet-form-breed').value,
-        city: document.getElementById('pet-form-city').value,
-        img: imgVal,
-        medical: document.getElementById('pet-form-medical').value,
-        past: document.getElementById('pet-form-past').value,
-        desc: document.getElementById('pet-form-desc').value,
-        castrated: document.getElementById('pet-form-castrated').checked,
-        specialNeed: document.getElementById('pet-form-specialNeed').checked,
-        singlePet: false,
-        purpose: "companhia"
-    };
-
-    if (idVal) {
-        const idx = dbDogs.findIndex(d => d.id === parseInt(idVal));
-        if (idx !== -1) dbDogs[idx] = petData;
-    } else {
-        dbDogs.unshift(petData);
-    }
-
-    saveStorage();
-    closePetFormModal();
-    if (typeof closeModal === 'function') closeModal();
-    if (typeof renderAdminPets === 'function') renderAdminPets();
-    if (typeof initApp === 'function') initApp();
-
-    alert("Pet salvo com sucesso!");
+    let img = document.getElementById('pet-form-img-value').value;
+    if (!img) return alert('Selecione uma imagem.');
+    try {
+        if (img.startsWith('data:')) {
+            const file = document.getElementById('pet-file-input')?.files?.[0] || document.getElementById('pet-camera-input')?.files?.[0];
+            if (!file) throw new Error('Selecione novamente o arquivo de imagem.');
+            img = await backend.animals.uploadImage(file);
+        }
+        const birthdate = document.getElementById('pet-form-birthdate').value;
+        const pet = {
+            id: idVal ? Number(idVal) : undefined, name: document.getElementById('pet-form-name').value,
+            sex: document.getElementById('pet-form-sex').value, species: document.getElementById('pet-form-species').value,
+            birthdate, age: calculateAgeString(birthdate), size: document.getElementById('pet-form-size').value,
+            breed: document.getElementById('pet-form-breed').value, city: document.getElementById('pet-form-city').value, img,
+            medical: document.getElementById('pet-form-medical').value, past: document.getElementById('pet-form-past').value,
+            desc: document.getElementById('pet-form-desc').value, castrated: document.getElementById('pet-form-castrated').checked,
+            specialNeed: document.getElementById('pet-form-specialNeed').checked, singlePet: false, purpose: 'companhia'
+        };
+        await backend.animals.save(pet); await refreshData(); closePetFormModal(); renderAdminPets(); alert('Pet salvo!');
+    } catch (err) { reportError(err); }
 }
 
-function deletePet(id) {
-    if (confirm("Tem certeza de que deseja excluir este animal da base de dados?")) {
-        dbDogs = dbDogs.filter(d => d.id !== id);
-        likedDogs = likedDogs.filter(d => d.id !== id);
-        saveStorage();
-        closeModal();
-        renderAdminPets();
-        alert("Pet excluído!");
-    }
+async function deletePet(id) {
+    if (!confirm('Excluir este animal permanentemente?')) return;
+    try { await backend.animals.remove(id); await refreshData(); closeModal(); renderAdminPets(); } catch (e) { reportError(e); }
 }
 
 // --- SISTEMA DE CORRESPONDÊNCIA / QUIZ ---
@@ -663,37 +471,20 @@ function updateFileLabel(inputId, labelId) {
     }
 }
 
-function saveProfile() {
-    const species = document.querySelector('input[name="p-species"]:checked')?.value || "";
-    const size = document.getElementById('p-size').value;
-    const age = document.getElementById('p-age').value;
-    const housing = document.querySelector('input[name="p-housing"]:checked')?.value || "casa";
-    const activity = document.getElementById('p-activity-select').value;
-    const routine = document.getElementById('p-routine').value;
-    const kids = document.getElementById('p-kids').checked;
-    const otherPets = document.getElementById('p-otherPets').checked;
-    const acceptSpecial = document.getElementById('p-acceptSpecial').checked;
-
-    userProfile = {
-        species,
-        size,
-        age,
-        housing,
-        activity,
-        routine,
-        kids,
-        otherPets,
-        acceptSpecial
+async function saveProfile() {
+    const p = {
+        species: document.querySelector('input[name="p-species"]:checked')?.value || '',
+        size: document.getElementById('p-size').value, age: document.getElementById('p-age').value,
+        housing: document.querySelector('input[name="p-housing"]:checked')?.value || 'casa',
+        activity: document.getElementById('p-activity-select').value, routine: document.getElementById('p-routine').value,
+        kids: document.getElementById('p-kids').checked, otherPets: document.getElementById('p-otherPets').checked,
+        acceptSpecial: document.getElementById('p-acceptSpecial').checked
     };
-
-    saveStorage();
-
-    document.getElementById('view-profile').classList.add('hidden');
-    document.getElementById('view-profile').classList.remove('flex');
-
-    document.getElementById('app').classList.remove('hidden');
-
-    initApp();
+    try {
+        await backend.quiz.save(p); userProfile = p;
+        document.getElementById('view-profile').classList.add('hidden'); document.getElementById('view-profile').classList.remove('flex');
+        document.getElementById('app').classList.remove('hidden'); initApp();
+    } catch (e) { reportError(e); }
 }
 
 function openProfileEdit() {
@@ -916,7 +707,7 @@ function swipeCard(direction) {
 
     if (direction === 'right' && pet) {
         likedDogs.push(pet);
-        saveStorage();
+        backend.likes.add(pet.id).catch(async e => { reportError(e); await refreshData(); updateLikedView(); updateBadge(); });
         updateLikedView();
         updateBadge();
     }
@@ -1256,7 +1047,7 @@ function renderUserInterests() {
     );
 
 }
-function openChat(interestId) {
+async function openChat(interestId) {
 
     const interest =
         adoptionInterests.find(
@@ -1332,8 +1123,8 @@ function openChat(interestId) {
     `;
 
 
+    try { await refreshChat(interestId); } catch (e) { reportError(e); return; }
     renderChatMessages();
-
 
     const modal =
         document.getElementById(
@@ -1449,8 +1240,8 @@ function renderChatMessages() {
         message => {
 
             const mine =
-                message.sender ===
-                currentUser.email;
+                message.senderId ===
+                currentUser.id;
 
 
             const wrapper =
@@ -1516,102 +1307,12 @@ function escapeHTML(text) {
 
     return div.innerHTML;
 
-} function sendChatMessage(event) {
-
-    event.preventDefault();
-
-
-    const input =
-        document.getElementById(
-            'chat-input'
-        );
-
-
-    const text =
-        input.value.trim();
-
-
-    if (
-        !text ||
-        !currentChatInterestId ||
-        !currentUser
-    ) {
-        return;
-    }
-
-
-    const now =
-        new Date();
-
-
-    const message = {
-
-        id:
-            Date.now() +
-            Math.floor(
-                Math.random() * 1000
-            ),
-
-        interestId:
-            currentChatInterestId,
-
-        sender:
-            currentUser.email,
-
-        senderRole:
-            currentUser.role === 'admin'
-                ? 'admin'
-                : 'user',
-
-        message:
-            text,
-
-        timestamp:
-            now.getTime(),
-
-        date:
-            now.toLocaleDateString(
-                'pt-BR'
-            ),
-
-        time:
-            now.toLocaleTimeString(
-                'pt-BR',
-                {
-                    hour: '2-digit',
-                    minute: '2-digit'
-                }
-            )
-
-    };
-
-
-    chatMessages.push(
-        message
-    );
-
-
-    saveStorage();
-
-
-    input.value = '';
-
-
-    renderChatMessages();
-
-
-    if (
-        currentUser.role === 'admin'
-    ) {
-
-        renderAdminInterests();
-
-    } else {
-
-        renderUserInterests();
-
-    }
-
+}
+async function sendChatMessage(event) {
+    event.preventDefault(); const input = document.getElementById('chat-input'), value = input.value.trim();
+    if (!value || !currentChatInterestId) return;
+    try { await backend.chat.send(currentChatInterestId, value); input.value = ''; await refreshChat(currentChatInterestId); renderChatMessages(); }
+    catch (e) { reportError(e); }
 }
 
 function updateBadge() {
@@ -1674,120 +1375,46 @@ function closeModal() {
     currentModalPetId = null;
 }
 
-function fakeAdoptionAction() {
-    if (!currentModalPetId) {
-        alert("Não foi possível identificar o pet.");
-        return;
-    }
-
-    if (!currentUser) {
-        alert("Você precisa estar logado para demonstrar interesse.");
-        return;
-    }
-
-    const pet = dbDogs.find(d => d.id === currentModalPetId);
-
-    if (!pet) {
-        alert("Pet não encontrado.");
-        return;
-    }
-
-    // Procura os dados completos do usuário cadastrado
-    const registeredUser = users.find(
-        u => u.email === currentUser.email
-    );
-
-    if (!registeredUser) {
-        alert("Não foi possível encontrar os dados da sua conta.");
-        return;
-    }
-
-    const email = registeredUser.email;
-    const phone = registeredUser.phone || "Não informado";
-
-    const today = new Date().toLocaleDateString('pt-BR');
-
-    // Evita demonstrar interesse várias vezes no mesmo animal
-    const alreadyInterested = adoptionInterests.some(
-        interest =>
-            interest.petId === pet.id &&
-            interest.userEmail === email
-    );
-
-    if (alreadyInterested) {
-        alert(`Você já demonstrou interesse em adotar ${pet.name}.`);
-        return;
-    }
-
-    const newInterest = {
-
-        id:
-            Date.now() +
-            Math.floor(Math.random() * 1000),
-
-        petId: pet.id,
-
-        petName: pet.name,
-
-        userEmail: email,
-
-        phone: phone,
-
-        housing:
-            userProfile?.housing ||
-            "Não informado",
-
-        date: today,
-
-        status: "Em análise"
-
-    };
-    adoptionInterests.unshift(newInterest);
-
-    saveStorage();
-    renderUserInterests();
-
-    alert(
-        `Interesse registrado com sucesso!\n\n` +
-        `Você demonstrou interesse em adotar ${pet.name}.\n` +
-        `A ONG poderá entrar em contato pelo telefone cadastrado.`
-    );
-
-    closeModal();
+async function fakeAdoptionAction() {
+    if (!currentModalPetId || !currentUser) return alert('Faça login e selecione um pet.');
+    const pet = dbDogs.find(p => p.id === currentModalPetId); if (!pet) return;
+    if (adoptionInterests.some(i => i.petId === pet.id)) return alert('Você já demonstrou interesse neste animal.');
+    try {
+        await backend.interests.add(pet.id); await refreshData(); renderUserInterests(); closeModal();
+        alert('Interesse registrado! A ONG poderá entrar em contato pelo telefone cadastrado.');
+    } catch (e) { reportError(e); }
 }
-function restoreSession() {
-    if (!currentUser) {
-        // Nenhum usuário logado
-        document.getElementById('view-auth').classList.remove('hidden');
-        return;
-    }
+async function restoreSession() {
+    try {
+        const { data, error } = await backend.auth.session();
 
-    // Esconde login
-    document.getElementById('view-auth').classList.add('hidden');
+        if (error) {
+            throw error;
+        }
 
-    // ONG / ADMIN
-    if (currentUser.role === 'admin') {
-        document.getElementById('view-admin').classList.remove('hidden');
+        if (data?.session) {
+            await enterApp();
+        } else {
+            document.getElementById('view-auth')
+                .classList.remove('hidden');
+        }
 
-        renderAdminPets();
-        renderAdminInterests();
+    } catch (error) {
+        reportError(error);
 
-        return;
-    }
-
-    // ADOTANTE
-    document.getElementById('profile-user-email').innerText =
-        currentUser.email;
-
-    if (!userProfile) {
-        // Ainda não respondeu o formulário
-        document.getElementById('view-profile').classList.remove('hidden');
-        document.getElementById('view-profile').classList.add('flex');
-    } else {
-        // Já possui perfil
-        document.getElementById('app').classList.remove('hidden');
-        initApp();
+        document.getElementById('view-auth')
+            .classList.remove('hidden');
     }
 }
 
 document.addEventListener('DOMContentLoaded', restoreSession);
+
+// Handlers usados pelos atributos onclick existentes no HTML.
+Object.assign(window, { sendChatMessage, reportError, mapInterest, refreshData, refreshChat, enterApp, getLikedDogsKey, loadLikedDogs, saveStorage, ensureInterestIds, calculateAgeString, previewPetAge, setImgSourceMode, handleImageFileSelect, updateImgPreview, toggleAuth, login, register, logout, deleteAccount, switchAdminTab, renderAdminPets, renderAdminInterests, removeInterest, openPetFormModal, closePetFormModal, savePetForm, deletePet, updateFileLabel, saveProfile, openProfileEdit, calculateMatch, enrichPet, initApp, renderCards, setupDragEvents, handleDragStart, handleDragMove, handleDragEnd, swipeCard, toggleFilterMenu, applyFilters, resetApp, switchTab, updateLikedView, renderUserInterests, openChat, closeChat, renderChatMessages, escapeHTML, updateBadge, openModal, closeModal, fakeAdoptionAction, restoreSession });
+
+// Disponibiliza funções para os eventos onclick do HTML
+
+window.toggleAuth = toggleAuth;
+window.login = login;
+window.register = register;
+window.logout = logout;
