@@ -79,7 +79,22 @@ export const backend = {
   },
   interests: {
     async mine() { return unwrap(await supabase.from('interesses').select('*').eq('adotante_id', await uid()).order('criado_em', { ascending: false })); },
-    async forAnimal(id) { return unwrap(await supabase.from('interesses').select('*').eq('animal_id', id)); },
+
+    async forAnimal(id) {
+      return unwrap(
+        await supabase
+          .from('interesses')
+          .select(`
+                *,
+                perfis (
+                    email,
+                    telefone
+                )
+            `)
+          .eq('animal_id', id)
+          .order('criado_em', { ascending: false })
+      );
+    },
     async add(id) { return unwrap(await supabase.from('interesses').insert({ adotante_id: await uid(), animal_id: id }).select().single()); },
     async updateStatus(id, status) { return unwrap(await supabase.from('interesses').update({ status }).eq('id', id).select().single()); },
     async remove(id) { return unwrap(await supabase.from('interesses').delete().eq('id', id)); }

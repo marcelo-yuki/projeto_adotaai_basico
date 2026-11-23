@@ -3,14 +3,36 @@ import { backend } from './backend.js';
 import { supabase } from './supabase-client.js';
 
 function reportError(error) { console.error('Supabase:', error); alert(error?.message || 'Erro ao comunicar com o servidor.'); }
+
+
 function mapInterest(i) {
     const p = i.perfis || {};
+
     return {
-        id: i.id, petId: i.animal_id, petName: dbDogs.find(d => d.id === i.animal_id)?.name || 'Animal',
-        userEmail: p.email || currentUser?.email || '', phone: p.telefone || '',
-        date: new Date(i.criado_em).toLocaleDateString('pt-BR'), status: ({ 'pendente': 'Em análise', 'em_analise': 'Em análise', 'aprovado': 'Aprovado', 'recusado': 'Recusado', 'cancelado': 'Cancelado' })[i.status] || i.status
+        id: i.id,
+        petId: i.animal_id,
+
+        petName: dbDogs.find(
+            d => d.id === i.animal_id
+        )?.name || 'Animal',
+
+        userEmail: p.email || '',
+        phone: p.telefone || '',
+
+        date: new Date(i.criado_em)
+            .toLocaleDateString('pt-BR'),
+
+        status: ({
+            pendente: 'Em análise',
+            em_analise: 'Em análise',
+            aprovado: 'Aprovado',
+            recusado: 'Recusado',
+            cancelado: 'Cancelado'
+        })[i.status] || i.status
     };
 }
+
+
 async function refreshData() {
     dbDogs = await backend.animals.list();
     if (!currentUser) return;
@@ -302,27 +324,21 @@ function renderAdminInterests() {
     </div>
 
 
-    <div class="space-y-1 text-gray-700">
+        
+    <div class="space-y-2 text-gray-700">
 
-        <p class="font-bold text-gray-900">
-
+        <p class="break-all">
             <i class="ph-fill ph-envelope mr-1 text-gray-500"></i>
-
-            ${item.userEmail}
-
+            E-mail: ${item.userEmail || 'Não informado'}
         </p>
 
         <p>
-
             <i class="ph-fill ph-phone mr-1 text-gray-500"></i>
-
-            <strong>Tel:</strong>
-
-            ${item.phone || 'Não informado'}
-
+            Telefone: ${item.phone || 'Não informado'}
         </p>
 
-    </div>
+    </div>  
+
 
 
     <div class="pt-2 border-t border-gray-100">
